@@ -8,6 +8,7 @@ import { IStaticsExecutionOracle } from "../../src/interfaces/IStaticsExecutionO
 import { OracleInit } from "../../src/init/OracleInit.sol";
 import { LibOracle } from "../../src/libraries/LibOracle.sol";
 import { LibGuard } from "../../src/libraries/LibGuard.sol";
+import { LibPnl } from "../../src/libraries/LibPnl.sol";
 import { ExecutionOracleMock } from "../mocks/ExecutionOracleMock.sol";
 
 contract OracleClientHarness {
@@ -69,5 +70,88 @@ contract OracleClientTest is Test {
         OracleInit init = new OracleInit();
         vm.expectRevert(OracleInit.InvalidInitialization.selector);
         init.initialize(address(oracle));
+    }
+
+    function testFuzz_AdapterFailuresAreNotSwallowed(bytes4 selector, uint256 detail) public {
+        bytes memory reason = abi.encodeWithSelector(selector, detail);
+        oracle.setFailure(reason);
+        vm.expectRevert(reason);
+        client.quote(MARKET, STREAM, new bytes[](0));
+        assertEq(oracle.calls(), 0);
+    }
+
+    function test_ReportAndSequencerRejectionsPropagateExactly() public {
+        // Adapter policy is not duplicated here. These are opaque simulated terminal errors.
+        string[8] memory errors = [
+            "WrongStreamId(bytes32,bytes32)",
+            "ReportExpired(uint32,uint256)",
+            "InvalidReportPrice(int192)",
+            "ReportWindowUnavailable(uint256)",
+            "OverlappingReportWindows(uint256,uint256)",
+            "SequencerDown()",
+            "UnauthorizedConsumer(address)",
+            "VerifierResponseLengthMismatch(uint256,uint256)"
+        ];
+        for (uint256 i; i < errors.length; ++i) {
+            bytes memory reason = abi.encodePacked(bytes4(keccak256(bytes(errors[i]))), bytes32(i));
+            oracle.setFailure(reason);
+            vm.expectRevert(reason);
+            client.quote(MARKET, STREAM, new bytes[](0));
+        }
+    }
+
+    function test_ClientRejectsUnexpectedStreamAndUnsupportedPriceDomain() public {
+        bytes[] memory reports = new bytes[](0);
+        vm.expectRevert(LibOracle.UnexpectedStream.selector);
+        client.quote(MARKET, bytes32(0), reports);
+        assertEq(oracle.calls(), 0);
+        oracle.setResponse(IStaticsExecutionOracle.ExecutionPrice(1e18, 100, 99, 101, bytes32(uint256(1))));
+        vm.expectRevert(LibOracle.UnexpectedStream.selector);
+        client.quote(MARKET, STREAM, reports);
+        assertEq(oracle.calls(), 0);
+        oracle.setResponse(IStaticsExecutionOracle.ExecutionPrice(0, 100, 99, 101, STREAM));
+        vm.expectRevert(LibPnl.InvalidPrice.selector);
+        client.quote(MARKET, STREAM, reports);
+        oracle.setResponse(
+            IStaticsExecutionOracle.ExecutionPrice(uint256(type(uint120).max) + 1, 100, 99, 101, STREAM)
+        );
+        vm.expectRevert(LibPnl.InvalidPrice.selector);
+        client.quote(MARKET, STREAM, reports);
+    }
+
+    function test_IdenticalAuthenticatedPriceHasNoCallerOrEndpointPreference() public {
+        bytes[] memory reports = new bytes[](2);
+        reports[0] = hex"01";
+        reports[1] = hex"02";
+        vm.prank(makeAddr("first independent caller"));
+        IStaticsExecutionOracle.ExecutionPrice memory first = client.quote(MARKET, STREAM, reports);
+        reports[0] = hex"02";
+        reports[1] = hex"01";
+        vm.prank(makeAddr("second independent caller"));
+        IStaticsExecutionOracle.ExecutionPrice memory second = client.quote(MARKET, STREAM, reports);
+        assertEq(abi.encode(first), abi.encode(second));
+        assertEq(oracle.lastBundleHash(), keccak256(abi.encode(reports)));
+        assertEq(oracle.calls(), 2);
+    }
+
+    function test_OracleCannotReenterSharedFinancialBoundary() public {
+        bytes[] memory reports = new bytes[](0);
+        oracle.setCallback(
+            address(client), abi.encodeCall(OracleClientHarness.quote, (MARKET, STREAM, reports))
+        );
+        vm.expectRevert(LibGuard.ReentrantCall.selector);
+        client.quote(MARKET, STREAM, reports);
+        assertEq(oracle.calls(), 0);
+    }
+
+    function test_OracleDependencyCannotBeReinitialized() public {
+        OracleInit another = new OracleInit();
+        IDiamondCut.FacetCut[] memory empty = new IDiamondCut.FacetCut[](0);
+        bytes memory data = abi.encodeCall(OracleInit.initialize, (address(oracle)));
+        BucketPerpsDiamond diamond = BucketPerpsDiamond(payable(address(client)));
+        diamond.scheduleDiamondCut(empty, address(another), data);
+        vm.warp(block.timestamp + 1 days);
+        vm.expectRevert(OracleInit.InvalidInitialization.selector);
+        diamond.diamondCut(empty, address(another), data);
     }
 }
