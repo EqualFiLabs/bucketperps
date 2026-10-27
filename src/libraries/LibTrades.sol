@@ -9,6 +9,7 @@ import { LibMarkets } from "./LibMarkets.sol";
 import { LibPnl } from "./LibPnl.sol";
 import { LibOracle } from "./LibOracle.sol";
 import { LibUnits } from "./LibUnits.sol";
+import { LibQueue } from "./LibQueue.sol";
 
 library LibTrades {
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.trades.v1");
@@ -67,8 +68,7 @@ library LibTrades {
         LibAccounts.requireOwner(positionId);
         if (block.timestamp > p.deadline) revert DeadlineExpired();
         if (block.timestamp > type(uint64).max) revert TimestampOutOfRange();
-        // Claim funding is added through its separate bounded consumption path.
-        if (p.fundingSource != FundingSource.Cash || portions.length != 0) revert InvalidFunding();
+        if (p.fundingSource == FundingSource.Cash && portions.length != 0) revert InvalidFunding();
         LibUnits.toTokenUnits(p.marginWad, LibBookStorage.state().cashQuantum);
         tradeId = ++state().nextTradeId;
         Trade storage t = state().trades[tradeId];
@@ -83,7 +83,8 @@ library LibTrades {
         t.leverage = p.leverage;
         t.termsVersion = p.expectedTermsVersion;
         t.openedAt = uint64(block.timestamp);
-        _lockCash(positionId, p.marginWad);
+        if (p.fundingSource == FundingSource.Cash) _lockCash(positionId, p.marginWad);
+        else LibQueue.consume(positionId, tradeId, p.marginWad, portions);
         _price(t, reports);
         ++LibAccountsStorage.state().accounts[positionId].openTradeCount;
         LibAccounts.syncActivity(positionId);
