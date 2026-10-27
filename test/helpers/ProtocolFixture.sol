@@ -149,8 +149,11 @@ abstract contract ProtocolFixture is Test {
         s[3] = HouseFacet.distributeSurplus.selector;
         s[4] = HouseFacet.configureSurplus.selector;
         cuts[8] = _cut(address(new HouseFacet()), s);
-        s = new bytes4[](1);
+        s = new bytes4[](4);
         s[0] = LiquidationFacet.liquidate.selector;
+        s[1] = LiquidationFacet.keeperPayable.selector;
+        s[2] = LiquidationFacet.totalKeeperPayable.selector;
+        s[3] = LiquidationFacet.withdrawKeeperCredit.selector;
         cuts[9] = _cut(address(new LiquidationFacet()), s);
         diamond = new BucketPerpsDiamond(
             BucketPerpsDiamond.Bootstrap({
