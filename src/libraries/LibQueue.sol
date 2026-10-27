@@ -7,6 +7,7 @@ import { LibBookStorage } from "./LibBookStorage.sol";
 import { LibUnits } from "./LibUnits.sol";
 import { ClaimPortion } from "../types/TradingTypes.sol";
 import { LibBook } from "./LibBook.sol";
+import { LibCash } from "./LibCash.sol";
 
 library LibQueue {
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.queue.v1");
@@ -70,6 +71,7 @@ library LibQueue {
 
     function harvest(uint256 maxVisits) internal returns (uint256 paid) {
         if (maxVisits == 0 || maxVisits > MAX_VISITS) revert InvalidBound();
+        LibCash.requireBacking();
         State storage s = state();
         LibBookStorage.State storage b = LibBookStorage.state();
         uint256 head = s.headId == 0 ? 1 : s.headId;

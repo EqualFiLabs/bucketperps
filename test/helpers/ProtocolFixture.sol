@@ -15,6 +15,7 @@ import { TradingFacet } from "../../src/facets/TradingFacet.sol";
 import { QueueFacet } from "../../src/facets/QueueFacet.sol";
 import { SettlementFacet } from "../../src/facets/SettlementFacet.sol";
 import { FeeFacet } from "../../src/facets/FeeFacet.sol";
+import { HouseFacet } from "../../src/facets/HouseFacet.sol";
 import { LibBookStorage } from "../../src/libraries/LibBookStorage.sol";
 import { LibFees } from "../../src/libraries/LibFees.sol";
 import { LibGuard } from "../../src/libraries/LibGuard.sol";
@@ -83,6 +84,7 @@ abstract contract ProtocolFixture is Test {
     QueueFacet internal queue;
     SettlementFacet internal settlement;
     FeeFacet internal feeFacet;
+    HouseFacet internal houseFacet;
     FixtureBookFacet internal bookView;
     address internal alice;
     address internal bob;
@@ -95,7 +97,7 @@ abstract contract ProtocolFixture is Test {
         oracle = new ExecutionOracleMock();
         statics.mint(alice, 1);
         statics.mint(bob, 2);
-        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](8);
+        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](9);
         bytes4[] memory s = new bytes4[](3);
         s[0] = AccountFacet.accountState.selector;
         s[1] = AccountFacet.hasUnresolvedAccountState.selector;
@@ -138,6 +140,13 @@ abstract contract ProtocolFixture is Test {
         s[0] = FeeFacet.feePayables.selector;
         s[1] = FeeFacet.withdrawProtocolFees.selector;
         cuts[7] = _cut(address(new FeeFacet()), s);
+        s = new bytes4[](5);
+        s[0] = HouseFacet.unassignedSettlementUnits.selector;
+        s[1] = HouseFacet.classifySettlementDonation.selector;
+        s[2] = HouseFacet.surplusConfiguration.selector;
+        s[3] = HouseFacet.distributeSurplus.selector;
+        s[4] = HouseFacet.configureSurplus.selector;
+        cuts[8] = _cut(address(new HouseFacet()), s);
         diamond = new BucketPerpsDiamond(
             BucketPerpsDiamond.Bootstrap({
                 governor: address(this),
@@ -157,6 +166,7 @@ abstract contract ProtocolFixture is Test {
         queue = QueueFacet(address(diamond));
         settlement = SettlementFacet(address(diamond));
         feeFacet = FeeFacet(address(diamond));
+        houseFacet = HouseFacet(address(diamond));
         bookView = FixtureBookFacet(address(diamond));
         statics.configure(address(diamond), true);
         markets.configureMarket(MARKET, STREAM, _risk());

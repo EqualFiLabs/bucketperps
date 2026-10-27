@@ -10,6 +10,7 @@ import { LibPnl } from "./LibPnl.sol";
 import { LibOracle } from "./LibOracle.sol";
 import { LibUnits } from "./LibUnits.sol";
 import { LibQueue } from "./LibQueue.sol";
+import { LibCash } from "./LibCash.sol";
 
 library LibTrades {
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.trades.v1");
@@ -66,6 +67,7 @@ library LibTrades {
         bytes[] calldata reports
     ) internal returns (uint256 tradeId) {
         LibAccounts.requireOwner(positionId);
+        LibCash.requireBacking();
         if (block.timestamp > p.deadline) revert DeadlineExpired();
         if (block.timestamp > type(uint64).max) revert TimestampOutOfRange();
         if (p.fundingSource == FundingSource.Cash && portions.length != 0) revert InvalidFunding();

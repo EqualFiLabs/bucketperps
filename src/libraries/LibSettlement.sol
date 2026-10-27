@@ -14,6 +14,7 @@ import { LibOracle } from "./LibOracle.sol";
 import { LibMarkets } from "./LibMarkets.sol";
 import { LibPnl } from "./LibPnl.sol";
 import { LibFees } from "./LibFees.sol";
+import { LibCash } from "./LibCash.sol";
 
 library LibSettlement {
     using SafeCast for uint256;
@@ -46,6 +47,7 @@ library LibSettlement {
         returns (Result memory r)
     {
         LibTrades.Trade storage t = LibTrades.requireLive(positionId, tradeId);
+        LibCash.requireBacking();
         r.exitPrice1e18 =
         LibOracle.verify(t.marketId, LibMarkets.state().markets[t.marketId].streamId, reports).price1e18;
         r.busted = LibPnl.isBusted(r.exitPrice1e18, t.bustPrice1e18, t.isLong);
