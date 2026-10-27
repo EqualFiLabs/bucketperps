@@ -11,6 +11,7 @@ import { LibProtocol } from "../../src/libraries/LibProtocol.sol";
 import { LibOracle } from "../../src/libraries/LibOracle.sol";
 import { LibPnl } from "../../src/libraries/LibPnl.sol";
 import { LibTrades } from "../../src/libraries/LibTrades.sol";
+import { LibQueue } from "../../src/libraries/LibQueue.sol";
 import { LibGuard } from "../../src/libraries/LibGuard.sol";
 import { LibBookStorage } from "../../src/libraries/LibBookStorage.sol";
 import { LibAccountsStorage } from "../../src/libraries/LibAccountsStorage.sol";
@@ -57,7 +58,7 @@ abstract contract CashTradingFixture is Test {
         statics = new StaticsAccountMock();
         oracle = new ExecutionOracleMock();
         statics.mint(alice, 1);
-        trading = new CashTradingHarness(address(statics), address(token), address(oracle));
+        trading = _deployTrading();
         statics.configure(address(trading), true);
         trading.configureMarket(MARKET, STREAM, _risk());
         trading.publishTerms(MARKET, _terms());
@@ -68,6 +69,10 @@ abstract contract CashTradingFixture is Test {
         token.approve(address(trading), type(uint256).max);
         trading.deposit(1, 1_000e6);
         vm.stopPrank();
+    }
+
+    function _deployTrading() internal virtual returns (CashTradingHarness) {
+        return new CashTradingHarness(address(statics), address(token), address(oracle));
     }
 
     function _params(bool isLong) internal view returns (OpenParams memory) {
@@ -166,7 +171,7 @@ contract CashTradingTest is CashTradingFixture {
         p = _params(true);
         p.fundingSource = FundingSource.Claim;
         vm.prank(alice);
-        vm.expectRevert(LibTrades.InvalidFunding.selector);
+        vm.expectRevert(LibQueue.InvalidBound.selector);
         trading.openPosition(1, p, new ClaimPortion[](0), new bytes[](0));
         p = _params(true);
         ClaimPortion[] memory portions = new ClaimPortion[](1);

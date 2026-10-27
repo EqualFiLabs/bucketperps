@@ -5,6 +5,7 @@ import { LibAccounts } from "./LibAccounts.sol";
 import { LibAccountsStorage } from "./LibAccountsStorage.sol";
 import { LibBookStorage } from "./LibBookStorage.sol";
 import { LibUnits } from "./LibUnits.sol";
+import { ClaimPortion } from "../types/TradingTypes.sol";
 
 library LibQueue {
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.queue.v1");
@@ -26,8 +27,17 @@ library LibQueue {
 
     error InvalidBound();
     error InvalidClaimAmount();
+    error InvalidClaimPortion();
+    error DuplicateClaim();
 
     event ClaimQueued(uint256 indexed claimId, uint256 indexed positionId, uint256 amountWad);
+    event ClaimConsumed(
+        uint256 indexed claimId,
+        uint256 indexed positionId,
+        uint256 indexed tradeId,
+        uint256 amountWad,
+        uint256 remainingWad
+    );
 
     function state() internal pure returns (State storage s) {
         bytes32 slot = SLOT;
@@ -59,5 +69,38 @@ library LibQueue {
             ++head;
         }
         s.headId = head;
+    }
+
+    function consume(uint256 positionId, uint256 tradeId, uint256 margin, ClaimPortion[] calldata portions)
+        internal
+    {
+        if (portions.length == 0 || portions.length > MAX_PORTIONS) revert InvalidBound();
+        State storage s = state();
+        LibBookStorage.State storage b = LibBookStorage.state();
+        uint256 total;
+        for (uint256 i; i < portions.length; ++i) {
+            ClaimPortion calldata p = portions[i];
+            for (uint256 j; j < i; ++j) {
+                if (portions[j].claimId == p.claimId) revert DuplicateClaim();
+            }
+            Claim storage c = s.claims[p.claimId];
+            if (c.positionId != positionId || p.amountWad == 0 || p.amountWad > c.remainingWad) {
+                revert InvalidClaimPortion();
+            }
+            LibUnits.toTokenUnits(p.amountWad, b.cashQuantum);
+            total += p.amountWad;
+            if (total > margin) revert InvalidClaimAmount();
+            c.remainingWad -= p.amountWad;
+            if (c.remainingWad == 0) --LibAccountsStorage.state().accounts[positionId].liveClaimCount;
+            emit ClaimConsumed(p.claimId, positionId, tradeId, p.amountWad, c.remainingWad);
+        }
+        if (total != margin) revert InvalidClaimAmount();
+        b.queuedDebtWad -= margin;
+        b.committedDebtWad += margin;
+        LibAccountsStorage.state().accounts[positionId].committedClaimMarginWad += margin;
+        if (b.queuedDebtWad == 0) {
+            s.headId = s.nextClaimId + 1;
+            b.sideBucketWad = 0;
+        }
     }
 }
