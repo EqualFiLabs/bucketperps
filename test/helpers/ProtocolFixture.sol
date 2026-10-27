@@ -14,6 +14,7 @@ import { MarketFacet } from "../../src/facets/MarketFacet.sol";
 import { TradingFacet } from "../../src/facets/TradingFacet.sol";
 import { QueueFacet } from "../../src/facets/QueueFacet.sol";
 import { SettlementFacet } from "../../src/facets/SettlementFacet.sol";
+import { FeeFacet } from "../../src/facets/FeeFacet.sol";
 import { LibBookStorage } from "../../src/libraries/LibBookStorage.sol";
 import { LibFees } from "../../src/libraries/LibFees.sol";
 import { LibGuard } from "../../src/libraries/LibGuard.sol";
@@ -81,6 +82,7 @@ abstract contract ProtocolFixture is Test {
     TradingFacet internal trading;
     QueueFacet internal queue;
     SettlementFacet internal settlement;
+    FeeFacet internal feeFacet;
     FixtureBookFacet internal bookView;
     address internal alice;
     address internal bob;
@@ -93,7 +95,7 @@ abstract contract ProtocolFixture is Test {
         oracle = new ExecutionOracleMock();
         statics.mint(alice, 1);
         statics.mint(bob, 2);
-        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](7);
+        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](8);
         bytes4[] memory s = new bytes4[](3);
         s[0] = AccountFacet.accountState.selector;
         s[1] = AccountFacet.hasUnresolvedAccountState.selector;
@@ -132,6 +134,10 @@ abstract contract ProtocolFixture is Test {
         s[2] = FixtureBookFacet.seedEntitlement.selector;
         s[3] = FixtureBookFacet.seedPriorCashOutcome.selector;
         cuts[6] = _cut(address(new FixtureBookFacet()), s);
+        s = new bytes4[](2);
+        s[0] = FeeFacet.feePayables.selector;
+        s[1] = FeeFacet.withdrawProtocolFees.selector;
+        cuts[7] = _cut(address(new FeeFacet()), s);
         diamond = new BucketPerpsDiamond(
             BucketPerpsDiamond.Bootstrap({
                 governor: address(this),
@@ -150,6 +156,7 @@ abstract contract ProtocolFixture is Test {
         trading = TradingFacet(address(diamond));
         queue = QueueFacet(address(diamond));
         settlement = SettlementFacet(address(diamond));
+        feeFacet = FeeFacet(address(diamond));
         bookView = FixtureBookFacet(address(diamond));
         statics.configure(address(diamond), true);
         markets.configureMarket(MARKET, STREAM, _risk());
@@ -191,10 +198,9 @@ abstract contract ProtocolFixture is Test {
 
     function _openCash(uint256 id, address owner, bool isLong) internal returns (uint256 tradeId) {
         vm.prank(owner);
-        return
-            trading.openPosition(
-                id, _params(isLong, FundingSource.Cash), new ClaimPortion[](0), new bytes[](0)
-            );
+        return trading.openPosition(
+            id, _params(isLong, FundingSource.Cash), new ClaimPortion[](0), new bytes[](0)
+        );
     }
 
     function _openClaim(uint256 id, address owner, uint256 claimId) internal returns (uint256 tradeId) {
