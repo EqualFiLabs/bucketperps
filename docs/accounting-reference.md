@@ -44,3 +44,15 @@ claim survivor-plus-fee funding boundaries, partial claim-win funding, claim
 busts with zero cash gain, S-first harvest, residual S release, fee payments and
 surplus recognition. Fixture fees use the approved 190/200 bps allocation;
 numerical settings remain configurable development values until calibrated.
+
+## Configurable surplus
+
+Surplus distribution has no enable flag. Development defaults use a zero
+threshold and route 100% to the Governor; these are placeholders, not calibrated
+launch economics. The Governor can set the threshold, recipients and secondary
+share through `configureSurplus`. A zero primary recipient selects the Governor.
+
+Distribution requires an empty FIFO queue, positive realized PnL above the
+configured threshold, and sufficient house cash. Committed claim margin does
+not block it. User cash, locked cash margin and funded payables remain excluded
+from house cash. Each distribution decreases custody and realized PnL once.

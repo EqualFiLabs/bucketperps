@@ -22,6 +22,10 @@ contract CashTokenMock is ERC20 {
         _mint(to, amount);
     }
 
+    function burn(address from, uint256 amount) external {
+        _burn(from, amount);
+    }
+
     function configure(uint256 fee, bool fail, address target, bytes calldata data) external {
         transferFee = fee;
         reject = fail;

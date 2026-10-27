@@ -12,9 +12,17 @@ library LibCash {
     error InvalidAmount();
     error InvalidReceiver();
     error InexactTransfer();
+    error CustodyShortfall();
+
+    function requireBacking() internal view {
+        LibBookStorage.State storage b = LibBookStorage.state();
+        uint256 accountedUnits = LibUnits.toTokenUnits(b.custodyWad, b.cashQuantum);
+        if (IERC20(b.settlementToken).balanceOf(address(this)) < accountedUnits) revert CustodyShortfall();
+    }
 
     function receiveExact(address from, uint256 units) internal returns (uint256 wad) {
         if (units == 0) revert InvalidAmount();
+        requireBacking();
         LibBookStorage.State storage b = LibBookStorage.state();
         IERC20 token = IERC20(b.settlementToken);
         uint256 beforeHere = token.balanceOf(address(this));
@@ -33,6 +41,7 @@ library LibCash {
     function sendExact(address to, uint256 wad) internal {
         if (wad == 0) revert InvalidAmount();
         if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        requireBacking();
         LibBookStorage.State storage b = LibBookStorage.state();
         uint256 units = LibUnits.toTokenUnits(wad, b.cashQuantum);
         IERC20 token = IERC20(b.settlementToken);
