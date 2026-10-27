@@ -11,6 +11,9 @@ import { LibProtocol } from "../../src/libraries/LibProtocol.sol";
 import { LibOracle } from "../../src/libraries/LibOracle.sol";
 import { LibPnl } from "../../src/libraries/LibPnl.sol";
 import { LibTrades } from "../../src/libraries/LibTrades.sol";
+import { LibGuard } from "../../src/libraries/LibGuard.sol";
+import { LibBookStorage } from "../../src/libraries/LibBookStorage.sol";
+import { LibAccountsStorage } from "../../src/libraries/LibAccountsStorage.sol";
 import { LibAccounts } from "../../src/libraries/LibAccounts.sol";
 import { IStaticsExecutionOracle } from "../../src/interfaces/IStaticsExecutionOracle.sol";
 import { CashTokenMock } from "../mocks/CashTokenMock.sol";
@@ -22,9 +25,22 @@ contract CashTradingHarness is CashHarness, MarketFacet, TradingFacet {
         LibProtocol.initialize(msg.sender, msg.sender, 1 days);
         LibOracle.state().executionOracle = oracle;
     }
+
+    /// @dev Fixture-only flat completion to test once-only OI release before settlement exists.
+    function retireFlat(uint256 positionId, uint256 id) external {
+        LibGuard.enter();
+        LibAccounts.requireOwner(positionId);
+        LibTrades.Trade storage t = LibTrades.requireLive(positionId, id);
+        LibTrades.retire(t);
+        LibBookStorage.state().lockedCashMarginWad -= t.marginWad;
+        LibBookStorage.state().accountCashWad += t.marginWad;
+        LibAccountsStorage.state().accounts[positionId].cashWad += t.marginWad;
+        LibAccounts.syncActivity(positionId);
+        LibGuard.exit();
+    }
 }
 
-contract CashTradingTest is Test {
+abstract contract CashTradingFixture is Test {
     bytes32 internal constant MARKET = keccak256("fixture market");
     bytes32 internal constant STREAM = keccak256("fixture stream");
     CashTokenMock internal token;
@@ -54,6 +70,26 @@ contract CashTradingTest is Test {
         vm.stopPrank();
     }
 
+    function _params(bool isLong) internal view returns (OpenParams memory) {
+        return OpenParams(MARKET, isLong, FundingSource.Cash, 100e18, 100, 1, block.timestamp);
+    }
+
+    function _risk() internal pure returns (LibMarkets.Risk memory) {
+        return LibMarkets.Risk(
+            true, true, 100, 1e18, 100_000e18, 1e18, 1_000_000e18, 5_000_000e18, 5_000_000e18, 10_000_000e18
+        );
+    }
+
+    function _terms() internal pure returns (LibMarkets.Terms memory) {
+        return LibMarkets.Terms(
+            LibMarkets.FeeTerms(100, 70, 20, 100, 80, 20, 40, 1e18),
+            LibPnl.Curve(0.02e18, 2e18, 1e18, 5e23, false),
+            5e14
+        );
+    }
+}
+
+contract CashTradingTest is CashTradingFixture {
     function test_CashOpenReclassifiesPrincipalWithoutHouseCapital() public {
         vm.prank(alice);
         uint256 id = trading.openPosition(1, _params(true), new ClaimPortion[](0), new bytes[](0));
@@ -176,23 +212,5 @@ contract CashTradingTest is Test {
         uint256 id = trading.openPosition(1, p, new ClaimPortion[](0), new bytes[](0));
         assertEq(trading.tradeState(id).bustPrice1e18, 0);
         assertEq(trading.book().lockedCashMarginWad, 100e18);
-    }
-
-    function _params(bool isLong) internal view returns (OpenParams memory) {
-        return OpenParams(MARKET, isLong, FundingSource.Cash, 100e18, 100, 1, block.timestamp);
-    }
-
-    function _risk() internal pure returns (LibMarkets.Risk memory) {
-        return LibMarkets.Risk(
-            true, true, 100, 1e18, 100_000e18, 1e18, 1_000_000e18, 5_000_000e18, 5_000_000e18, 10_000_000e18
-        );
-    }
-
-    function _terms() internal pure returns (LibMarkets.Terms memory) {
-        return LibMarkets.Terms(
-            LibMarkets.FeeTerms(100, 70, 20, 100, 80, 20, 40, 1e18),
-            LibPnl.Curve(0.02e18, 2e18, 1e18, 5e23, false),
-            5e14
-        );
     }
 }
