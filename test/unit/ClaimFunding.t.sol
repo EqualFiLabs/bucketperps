@@ -9,6 +9,13 @@ import { LibGuard } from "../../src/libraries/LibGuard.sol";
 import { OpenParams, ClaimPortion, FundingSource } from "../../src/types/TradingTypes.sol";
 
 contract ClaimTradingHarness is CashTradingHarness, QueueFacet {
+    /// @dev Fixture representing previously realized cash losses, not donation classification.
+    function seedHouse(uint256 cashWad, uint256 sideWad) external {
+        LibBookStorage.state().custodyWad += cashWad;
+        LibBookStorage.state().realizedHousePnlWad += int256(cashWad);
+        LibBookStorage.state().sideBucketWad += sideWad;
+    }
+
     constructor(address nft, address token, address oracle) CashTradingHarness(nft, token, oracle) { }
 
     function seedEntitlement(uint256 positionId, uint256 amount) external returns (uint256 id) {

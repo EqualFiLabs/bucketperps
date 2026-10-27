@@ -37,6 +37,12 @@ contract QueueFacet {
         return (LibQueue.MAX_VISITS, LibQueue.MAX_PORTIONS, LibQueue.MAX_PAGE);
     }
 
+    function harvest(uint256 maxEntries) external returns (uint256 paidWad) {
+        LibGuard.enter();
+        paidWad = LibQueue.harvest(maxEntries);
+        LibGuard.exit();
+    }
+
     function advanceQueue(uint256 maxVisits) external returns (uint256 headId) {
         LibGuard.enter();
         headId = LibQueue.advance(maxVisits);
