@@ -22,3 +22,20 @@ be qualified against their actual implementations before affected production use
 
 This repository is under development. Test settings are fixtures, and no release
 configuration or production compatibility is implied.
+
+## Development
+
+Use Foundry v1.8.6 and initialize the pinned submodules recursively. Solidity
+0.8.33 targets the Paris EVM with 200 optimizer runs. OpenZeppelin Contracts
+v5.7.0 and forge-std v1.17.0 are pinned by submodule commit.
+
+```sh
+git submodule update --init --recursive
+forge fmt --check
+forge build --sizes
+forge test
+FOUNDRY_PROFILE=ci forge test
+```
+
+CI runs the extended fuzz and invariant profile. Production configuration must
+provide separately qualified dependencies and explicitly selected launch values.

@@ -1,0 +1,31 @@
+name: Contracts
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    env:
+      FOUNDRY_PROFILE: ci
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: recursive
+      - name: Install pinned Foundry
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --location \
+            https://github.com/foundry-rs/foundry/releases/download/v1.8.6/foundry_v1.8.6_linux_amd64.tar.gz \
+            --output "$RUNNER_TEMP/foundry.tar.gz"
+          echo "58850106984038f3a7200f38a4182c8cb423d3a4f4c7848eacbc2453e6bc35fc  $RUNNER_TEMP/foundry.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/foundry"
+          tar -xzf "$RUNNER_TEMP/foundry.tar.gz" -C "$RUNNER_TEMP/foundry"
+          echo "$RUNNER_TEMP/foundry" >> "$GITHUB_PATH"
+      - run: forge fmt --check
+      - run: forge build --sizes
+      - run: forge test -vv
