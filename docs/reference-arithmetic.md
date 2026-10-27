@@ -95,4 +95,23 @@ equivalence nor original-source recovery, current live-code authentication,
 production configuration validity, or external integration readiness.
 
 The reference ABI width must not be used to silently truncate 18-decimal oracle
-prices. Production price-width integration remains a separate decision and gate.
+prices. BucketPerps uses uint256 prices normalized to 18 decimals and omits the reference's
+final narrowing. This is an explicit adaptation, not byte-for-byte equivalence.
+
+The implementation accepts positive prices through uint120.max and notional
+through uint128.max. Leverage is a uint32 integer; base rate is at most WAD, each
+multiplier at most uint96.max and reference notional at most uint128.max. These
+are technical bounds, independent of much smaller calibrated market limits.
+Zero thresholds and thresholds at or past entry retain the recovered formula's
+result without an added admission rejection. Intermediate floors remain distinct;
+full-precision multiplication/division supports the widened products. There is
+no wrapping arithmetic in the admitted implementation domain.
+
+Implementation tests compare golden outputs in their shared admissible domain.
+A separate offline comparison also matched the original runtime for 4,096 cases
+each of general PnL, favorable PnL and usable thresholds. Those 12,288 comparisons
+executed the Paris-target production harness in a Shanghai-capable local EVM
+required by the original runtime. Wider-domain gain bounds, favorable
+monotonicity and inclusive bust boundaries are separate fuzz properties.
+Original invalid configurations and truncating outputs are not presented as
+equivalent to the intentionally bounded, widened implementation.
