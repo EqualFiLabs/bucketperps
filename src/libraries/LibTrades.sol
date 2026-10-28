@@ -34,6 +34,7 @@ library LibTrades {
     struct State {
         uint256 nextTradeId;
         mapping(uint256 tradeId => Trade trade) trades;
+        mapping(uint256 positionId => uint256[]) accountTradeIds;
     }
 
     error DeadlineExpired();
@@ -73,6 +74,7 @@ library LibTrades {
         if (p.fundingSource == FundingSource.Cash && portions.length != 0) revert InvalidFunding();
         LibUnits.toTokenUnits(p.marginWad, LibBookStorage.state().cashQuantum);
         tradeId = ++state().nextTradeId;
+        state().accountTradeIds[positionId].push(tradeId);
         Trade storage t = state().trades[tradeId];
         t.positionId = positionId;
         t.marketId = p.marketId;

@@ -39,3 +39,6 @@ FOUNDRY_PROFILE=ci forge test
 
 CI runs the extended fuzz and invariant profile. Production configuration must
 provide separately qualified dependencies and explicitly selected launch values.
+
+Client workflows are documented in [Direct account integration](docs/client-integration.md)
+and the [event reference](docs/events.md).

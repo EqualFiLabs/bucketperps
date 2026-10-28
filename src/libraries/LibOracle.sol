@@ -11,6 +11,15 @@ library LibOracle {
         address executionOracle;
     }
 
+    event ExecutionPriceAccepted(
+        bytes32 indexed marketId,
+        bytes32 indexed streamId,
+        uint256 price1e18,
+        uint32 referenceTimestamp,
+        uint32 validFromTimestamp,
+        uint32 observationsTimestamp
+    );
+
     error OracleNotConfigured();
     error UnexpectedStream();
 
@@ -29,5 +38,13 @@ library LibOracle {
         result = IStaticsExecutionOracle(target).verifyExecutionPrice(marketId, fullReports);
         if (result.streamId != expectedStream) revert UnexpectedStream();
         LibPnl.validatePrice(result.price1e18);
+        emit ExecutionPriceAccepted(
+            marketId,
+            result.streamId,
+            result.price1e18,
+            result.referenceTimestamp,
+            result.validFromTimestamp,
+            result.observationsTimestamp
+        );
     }
 }
