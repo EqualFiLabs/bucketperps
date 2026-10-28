@@ -6,6 +6,8 @@ import { LibRewards } from "../libraries/LibRewards.sol";
 import { LibProtocol } from "../libraries/LibProtocol.sol";
 import { BackingVault } from "../rewards/BackingVault.sol";
 
+import { BucketRewardToken } from "../rewards/BucketRewardToken.sol";
+
 contract RewardsInit {
     error InvalidInitialization();
 
@@ -14,8 +16,9 @@ contract RewardsInit {
         if (!LibProtocol.state().initializing || s.staticsToken != address(0)) {
             revert InvalidInitialization();
         }
-        IERC20Metadata(staticsToken).decimals();
+        uint8 decimals = IERC20Metadata(staticsToken).decimals();
         s.staticsToken = staticsToken;
         s.backingVault = address(new BackingVault(staticsToken, address(this)));
+        s.receipt = address(new BucketRewardToken(address(this), decimals));
     }
 }

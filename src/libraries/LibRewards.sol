@@ -4,6 +4,9 @@ pragma solidity 0.8.33;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import { BucketRewardToken } from "../rewards/BucketRewardToken.sol";
+import { LibAccountsStorage } from "./LibAccountsStorage.sol";
+
 library LibRewards {
     using SafeERC20 for IERC20;
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.rewards.v1");
@@ -26,6 +29,18 @@ library LibRewards {
     function state() internal pure returns (State storage s) {
         bytes32 slot = SLOT;
         assembly { s.slot := slot }
+    }
+
+    /// @dev Internal issuance only; settlement supplies the loss-derived request.
+    function issue(uint256 positionId, uint256 requested) internal returns (uint256 issued) {
+        State storage s = state();
+        issued = requested < s.inventoryUnits ? requested : s.inventoryUnits;
+        if (issued == 0) return 0;
+        s.inventoryUnits -= issued;
+        s.allocatedUnits += issued;
+        LibAccountsStorage.state().accounts[positionId].unstakedRewardUnits += issued;
+        transferExact(address(this), s.backingVault, issued);
+        BucketRewardToken(s.receipt).mint(issued);
     }
 
     function transferExact(address from, address to, uint256 units) internal {

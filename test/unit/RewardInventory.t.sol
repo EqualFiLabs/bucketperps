@@ -9,7 +9,18 @@ import { LibRewards } from "../../src/libraries/LibRewards.sol";
 import { BackingVault } from "../../src/rewards/BackingVault.sol";
 import { CashTokenMock } from "../mocks/CashTokenMock.sol";
 
+import { LibAccountsStorage } from "../../src/libraries/LibAccountsStorage.sol";
+import { BucketRewardToken } from "../../src/rewards/BucketRewardToken.sol";
+
 contract InventoryHarness is RewardFacet {
+    function issue(uint256 id, uint256 requested) external returns (uint256) {
+        return LibRewards.issue(id, requested);
+    }
+
+    function entitlement(uint256 id) external view returns (uint256) {
+        return LibAccountsStorage.state().accounts[id].unstakedRewardUnits;
+    }
+
     constructor(address token) {
         LibProtocol.state().initializing = true;
         (bool ok,) = address(new RewardsInit()).delegatecall(abi.encodeCall(RewardsInit.initialize, (token)));
@@ -52,6 +63,29 @@ contract RewardInventoryTest is Test {
         h.fundRewardInventory(30e18);
         assertEq(h.rewardState().inventoryUnits, 0);
         assertEq(asset.balanceOf(address(h)), 0);
+    }
+
+    function testIssuanceAllocatesOneForOneAndCapsAtInventory() public {
+        h.fundRewardInventory(30e18);
+        assertEq(h.issue(1, 12e18), 12e18);
+        assertEq(h.issue(2, 25e18), 18e18);
+        LibRewards.State memory s = h.rewardState();
+        assertEq(s.inventoryUnits, 0);
+        assertEq(s.allocatedUnits, 30e18);
+        assertEq(h.entitlement(1) + h.entitlement(2), 30e18);
+        assertEq(asset.balanceOf(s.backingVault), 30e18);
+        BucketRewardToken receipt = BucketRewardToken(s.receipt);
+        assertEq(receipt.totalSupply(), 30e18);
+        assertEq(receipt.balanceOf(address(h)), 30e18);
+        assertEq(receipt.name(), "BPERP");
+        assertEq(receipt.symbol(), "BPERP");
+        vm.expectRevert(BucketRewardToken.RestrictedReceipt.selector);
+        receipt.mint(1);
+        vm.expectRevert(BucketRewardToken.RestrictedReceipt.selector);
+        receipt.burn(1);
+        vm.prank(address(h));
+        vm.expectRevert(BucketRewardToken.RestrictedReceipt.selector);
+        receipt.transfer(address(this), 1);
     }
 
     function testBackingCannotBeReleasedByFunder() public {
