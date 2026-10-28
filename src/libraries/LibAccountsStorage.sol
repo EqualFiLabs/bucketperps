@@ -15,6 +15,7 @@ library LibAccountsStorage {
         uint256 openTradeCount;
         uint256 liveClaimCount;
         bool externalStateActive;
+        uint256 revenueRemainderScaled;
     }
 
     struct State {

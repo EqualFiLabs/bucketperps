@@ -7,6 +7,8 @@ import { LibBookStorage } from "./LibBookStorage.sol";
 import { LibStakingStorage } from "./LibStakingStorage.sol";
 import { LibBook } from "./LibBook.sol";
 
+import { LibStaking } from "./LibStaking.sol";
+
 library LibFees {
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.fees.v1");
 
@@ -70,6 +72,7 @@ library LibFees {
         s.protocolPayableWad += q.protocolWad;
         s.operatorPayableWad += q.operatorWad;
         s.stakerPayableWad += q.stakerWad;
+        LibStaking.distribute(q.stakerWad);
         LibBookStorage.state().fundedPayablesWad += funded;
         emit FeesAllocated(q.totalWad, funded, q.stakerWad, q.protocolWad, q.operatorWad, retained);
     }
