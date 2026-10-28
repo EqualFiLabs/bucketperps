@@ -55,6 +55,40 @@ contract LossRewardsTest is RewardProtocolFixture {
         assertEq(rewards.rewardState().allocatedUnits, 0);
     }
 
+    function testOpenBeforeTaperUsesSettlementRateAndCannotIssueTwice() public {
+        _inventory(1000e18);
+        rewards.setLossRewardRate(10e18);
+        uint256 id = _openCash(1, alice, true);
+        rewards.setLossRewardRate(2e18);
+        _price(49_900e18);
+        vm.prank(alice);
+        settlement.closePosition(1, id, block.timestamp, new bytes[](0));
+        assertEq(accounts.accountState(1).unstakedRewardUnits, 40e18);
+        vm.prank(alice);
+        vm.expectRevert();
+        settlement.closePosition(1, id, block.timestamp, new bytes[](0));
+        assertEq(accounts.accountState(1).unstakedRewardUnits, 40e18);
+        rewards.setLossRewardRate(0);
+        uint256 next = _openCash(1, alice, true);
+        _price(49_800e18);
+        vm.prank(alice);
+        settlement.closePosition(1, next, block.timestamp, new bytes[](0));
+        assertEq(accounts.accountState(1).unstakedRewardUnits, 40e18);
+    }
+
+    function testFuzzSettlementRateAndInventoryBound(uint64 rate, uint96 inventory) public {
+        uint256 available = bound(inventory, 0, 1000e18);
+        if (available != 0) _inventory(available);
+        rewards.setLossRewardRate(rate);
+        uint256 id = _openCash(1, alice, true);
+        _price(49_900e18);
+        vm.prank(alice);
+        settlement.closePosition(1, id, block.timestamp, new bytes[](0));
+        uint256 requested = 20 * uint256(rate);
+        assertEq(accounts.accountState(1).unstakedRewardUnits, requested < available ? requested : available);
+        assertEq(rewards.rewardState().inventoryUnits + rewards.rewardState().allocatedUnits, available);
+    }
+
     function testRateIsImmediateConfigurableAndDoesNotIssue() public {
         rewards.setLossRewardRate(5e18);
         assertEq(rewards.rewardState().rewardUnitsPerDollar, 5e18);
