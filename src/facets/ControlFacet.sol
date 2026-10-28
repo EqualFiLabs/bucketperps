@@ -9,6 +9,17 @@ import { LibOracle } from "../libraries/LibOracle.sol";
 import { LibFees } from "../libraries/LibFees.sol";
 
 contract ControlFacet {
+    event ProtocolFinalized();
+
+    function finalizeProtocol() external {
+        LibGuard.enter();
+        LibProtocol.requireGovernor();
+        LibProtocol.requireUpgradeable();
+        LibProtocol.state().finalized = true;
+        emit ProtocolFinalized();
+        LibGuard.exit();
+    }
+
     error ActionNotReady();
     error InvalidDependency();
     event SafetyActionScheduled(bytes32 indexed operation, uint256 readyAt);

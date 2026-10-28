@@ -5,6 +5,8 @@ import { LibControls } from "../../src/libraries/LibControls.sol";
 
 import { ExecutionOracleMock } from "../mocks/ExecutionOracleMock.sol";
 
+import { IDiamondCut } from "../../src/interfaces/IDiamondCut.sol";
+
 contract ProtocolControlsTest is ControlProtocolFixture {
     function testOpensPausePreservesClosesButSettlementPauseBlocksBoth() public {
         uint256 id = _openCash(1, alice, true);
@@ -62,6 +64,35 @@ contract ProtocolControlsTest is ControlProtocolFixture {
         controls.scheduleSafetyAction(keccak256(abi.encode("oracle", address(oracle))));
         controls.executeOracle(address(oracle));
         _openCash(1, alice, true);
+    }
+
+    function testFinalizationBlocksPendingAndFutureCutsButRetainsOperations() public {
+        IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](0);
+        diamond.scheduleDiamondCut(cuts, address(0), "");
+        vm.prank(bob);
+        vm.expectRevert();
+        controls.finalizeProtocol();
+        controls.finalizeProtocol();
+        (,,, bool finalized) = diamond.protocolState();
+        assertTrue(finalized);
+        vm.warp(block.timestamp + 1 days);
+        vm.expectRevert();
+        diamond.diamondCut(cuts, address(0), "");
+        vm.expectRevert();
+        diamond.scheduleDiamondCut(cuts, address(0), "");
+        vm.expectRevert();
+        controls.finalizeProtocol();
+        controls.setSafetyDelays(0, 0);
+        vm.expectRevert();
+        diamond.scheduleDiamondCut(cuts, address(0), "");
+        rewards.setLossRewardRate(1e18);
+        controls.pause(LibControls.OPENS);
+        controls.unpause(LibControls.OPENS);
+        _house(10e18);
+        houseFacet.distributeSurplus(1e18);
+        uint256 id = _openCash(1, alice, true);
+        vm.prank(alice);
+        settlement.closePosition(1, id, block.timestamp, new bytes[](0));
     }
 
     function testGuardianCannotUnpauseAndIncidentPauseBlocksExits() public {
