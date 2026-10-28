@@ -11,12 +11,13 @@ abstract contract StakingProtocolFixture is RewardProtocolFixture {
     function setUp() public virtual override {
         super.setUp();
         IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](1);
-        bytes4[] memory s = new bytes4[](5);
+        bytes4[] memory s = new bytes4[](6);
         s[0] = StakingFacet.stake.selector;
         s[1] = StakingFacet.unstake.selector;
         s[2] = StakingFacet.claimStakerRevenue.selector;
         s[3] = StakingFacet.pendingStakerRevenue.selector;
         s[4] = StakingFacet.stakingTotals.selector;
+        s[5] = StakingFacet.onAccountMultiplierChanged.selector;
         cuts[0] = _cut(address(new StakingFacet()), s);
         diamond.scheduleDiamondCut(cuts, address(0), "");
         vm.warp(block.timestamp + 1 days);

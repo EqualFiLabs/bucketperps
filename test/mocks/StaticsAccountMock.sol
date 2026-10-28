@@ -13,6 +13,7 @@ contract StaticsAccountMock is MockPosition, IStaticsAccountBridge {
     mapping(uint256 => bool) public linked;
     mapping(uint256 => bool) public obligations;
     mapping(uint256 => bool) public morpho;
+    mapping(uint256 => uint256) public multipliers;
     bool public reject;
     address public callback;
     bytes public callbackData;
@@ -55,8 +56,21 @@ contract StaticsAccountMock is MockPosition, IStaticsAccountBridge {
         _callback();
     }
 
-    function accountMultiplierBps(uint256) external pure returns (uint256) {
-        return 10_000;
+    function accountMultiplierBps(uint256 id) external view returns (uint256) {
+        return multipliers[id] == 0 ? 10_000 : multipliers[id];
+    }
+
+    function changeMultiplier(address module, uint256 id, uint256 nextBps) external {
+        uint256 previous = multipliers[id] == 0 ? 10_000 : multipliers[id];
+        multipliers[id] = nextBps;
+        (bool ok, bytes memory result) = module.call(
+            abi.encodeWithSignature(
+                "onAccountMultiplierChanged(uint256,uint256,uint256)", id, previous, nextBps
+            )
+        );
+        if (!ok) {
+            assembly { revert(add(result, 32), mload(result)) }
+        }
     }
 
     function close(uint256 id) external {

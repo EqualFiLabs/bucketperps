@@ -21,6 +21,39 @@ contract StakingTest is StakingProtocolFixture {
         assertEq(bookView.book().custodyWad, beforeT);
     }
 
+    function testCanonicalCallbackCheckpointsOldWeightAndInitiallyBoostedStake() public {
+        _earnReceipts(1, alice);
+        statics.changeMultiplier(address(diamond), 1, 20_000);
+        vm.prank(alice);
+        staking.stake(1, 20e18);
+        assertEq(accounts.accountState(1).effectiveWeight, 40e18);
+        _earnReceipts(2, bob);
+        vm.prank(bob);
+        staking.stake(2, 20e18);
+        statics.changeMultiplier(address(diamond), 1, 10_000);
+        assertEq(accounts.accountState(1).claimableRevenueWad, 0.2e18);
+        assertEq(accounts.accountState(1).effectiveWeight, 20e18);
+        _price(50_000e18);
+        uint256 trade = _openCash(2, bob, true);
+        _price(49_900e18);
+        vm.prank(bob);
+        settlement.closePosition(2, trade, block.timestamp, new bytes[](0));
+        assertEq(staking.pendingStakerRevenue(1), 0.3e18);
+        assertEq(staking.pendingStakerRevenue(2), 0.1e18);
+    }
+
+    function testUnauthorizedAndInconsistentCallbacksRevert() public {
+        _earnReceipts(1, alice);
+        vm.prank(alice);
+        staking.stake(1, 20e18);
+        vm.expectRevert();
+        staking.onAccountMultiplierChanged(1, 10_000, 20_000);
+        vm.prank(address(statics));
+        vm.expectRevert();
+        staking.onAccountMultiplierChanged(1, 15_000, 20_000);
+        assertEq(accounts.accountState(1).effectiveWeight, 20e18);
+    }
+
     function testUnstakeDoesNotReleaseBackingAndBuyerOwnsRevenue() public {
         _earnReceipts(1, alice);
         vm.prank(alice);

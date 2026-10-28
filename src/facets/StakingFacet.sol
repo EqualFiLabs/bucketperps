@@ -9,7 +9,28 @@ import { LibBookStorage } from "../libraries/LibBookStorage.sol";
 import { LibFees } from "../libraries/LibFees.sol";
 import { LibGuard } from "../libraries/LibGuard.sol";
 
+import { IStaticsAccountBridge } from "../interfaces/IStaticsAccountBridge.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
 contract StakingFacet {
+    error InvalidWeightCallback();
+    event CanonicalWeightChanged(
+        uint256 indexed positionId, uint256 previousMultiplierBps, uint256 nextMultiplierBps
+    );
+
+    /// @notice Called atomically by the Statics Diamond on every canonical multiplier transition.
+    function onAccountMultiplierChanged(uint256 id, uint256 previousBps, uint256 nextBps) external {
+        LibGuard.enter();
+        if (msg.sender != LibAccountsStorage.state().staticsDiamond) revert InvalidWeightCallback();
+        LibStakingStorage.State storage s = LibStakingStorage.state();
+        LibAccountsStorage.Account storage a = LibAccountsStorage.state().accounts[id];
+        if (a.rawStakeUnits != 0 && s.multiplierBps[id] != previousBps) revert InvalidWeightCallback();
+        LibStaking.checkpoint(id);
+        _setWeight(id, nextBps);
+        emit CanonicalWeightChanged(id, previousBps, nextBps);
+        LibGuard.exit();
+    }
+
     event StakeChanged(uint256 indexed positionId, uint256 rawStakeUnits, uint256 effectiveWeight);
     event StakerRevenueClaimed(uint256 indexed positionId, uint256 amountWad);
 
@@ -70,10 +91,18 @@ contract StakingFacet {
     }
 
     function _weight(uint256 id) internal {
+        uint256 multiplier =
+            IStaticsAccountBridge(LibAccountsStorage.state().staticsDiamond).accountMultiplierBps(id);
+        _setWeight(id, multiplier);
+    }
+
+    function _setWeight(uint256 id, uint256 multiplier) internal {
         LibStakingStorage.State storage s = LibStakingStorage.state();
         LibAccountsStorage.Account storage a = LibAccountsStorage.state().accounts[id];
-        s.totalEffectiveWeight = s.totalEffectiveWeight - a.effectiveWeight + a.rawStakeUnits;
-        a.effectiveWeight = a.rawStakeUnits;
-        emit StakeChanged(id, a.rawStakeUnits, a.effectiveWeight);
+        uint256 next = Math.mulDiv(a.rawStakeUnits, multiplier, 10_000);
+        s.totalEffectiveWeight = s.totalEffectiveWeight - a.effectiveWeight + next;
+        a.effectiveWeight = next;
+        s.multiplierBps[id] = multiplier;
+        emit StakeChanged(id, a.rawStakeUnits, next);
     }
 }
