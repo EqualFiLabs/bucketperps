@@ -16,6 +16,8 @@ import { LibPnl } from "./LibPnl.sol";
 import { LibFees } from "./LibFees.sol";
 import { LibCash } from "./LibCash.sol";
 
+import { LibRewards } from "./LibRewards.sol";
+
 library LibSettlement {
     using SafeCast for uint256;
 
@@ -70,6 +72,7 @@ library LibSettlement {
         (r.fundedFeeWad, r.fundedProtocolWad) = LibFees.fund(q);
         LibBookStorage.state().realizedHousePnlWad += r.lossWad.toInt256() - r.netProfitWad.toInt256()
         - r.fundedFeeWad.toInt256();
+        LibRewards.rewardLoss(positionId, tradeId, r.lossWad);
         LibAccounts.syncActivity(positionId);
         emit TradeSettled(tradeId, positionId, r);
     }

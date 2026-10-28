@@ -9,7 +9,19 @@ import { LibAccountsStorage } from "../libraries/LibAccountsStorage.sol";
 import { BucketRewardToken } from "../rewards/BucketRewardToken.sol";
 import { BackingVault } from "../rewards/BackingVault.sol";
 
+import { LibProtocol } from "../libraries/LibProtocol.sol";
+
 contract RewardFacet {
+    event LossRewardRateChanged(uint256 previousUnitsPerDollar, uint256 nextUnitsPerDollar);
+
+    function setLossRewardRate(uint256 unitsPerDollar) external {
+        LibGuard.enter();
+        LibProtocol.requireGovernor();
+        uint256 previous = LibRewards.state().rewardUnitsPerDollar;
+        LibRewards.state().rewardUnitsPerDollar = unitsPerDollar;
+        emit LossRewardRateChanged(previous, unitsPerDollar);
+        LibGuard.exit();
+    }
     error ConversionDisabled();
     error InvalidReceiver();
     event Wrapped(uint256 indexed positionId, uint256 units);
