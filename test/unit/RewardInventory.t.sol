@@ -33,7 +33,7 @@ contract RewardInventoryTest is Test {
     CashTokenMock internal asset;
     InventoryHarness internal h;
 
-    function setUp() public {
+    function setUp() public virtual {
         asset = new CashTokenMock(18);
         h = new InventoryHarness(address(asset));
         asset.mint(address(this), 100e18);
