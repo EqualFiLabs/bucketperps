@@ -6,6 +6,10 @@ library LibStakingStorage {
 
     struct State {
         uint256 totalEffectiveWeight;
+        uint256 totalRawStakeUnits;
+        uint256 revenueIndex;
+        uint256 unindexedRevenueScaled;
+        mapping(uint256 positionId => uint256) multiplierBps;
     }
 
     function state() internal pure returns (State storage s) {
