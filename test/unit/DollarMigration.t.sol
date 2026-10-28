@@ -5,6 +5,21 @@ import { LibBookStorage } from "../../src/libraries/LibBookStorage.sol";
 import { IStaticsDollarCore } from "../../src/interfaces/IStaticsDollarCore.sol";
 
 contract DollarMigrationTest is DollarProtocolFixture {
+    function testExactConversionAcrossHealthyCollateralOraclePrices() public {
+        // Core quotes carry collateral spot prices separately from nominal conversion amounts.
+        dollarCore.setQuotePrice(1.001e18);
+        _bindDollar();
+        dollarCore.setQuotePrice(0.999e18);
+        _migrate();
+        dollarCore.setQuotePrice(1.002e18);
+        vm.prank(alice);
+        assetFacet.withdrawUsdG(1, 10e18, alice);
+        assertEq(token.balanceOf(alice), 10e6);
+        assertEq(accounts.accountState(1).cashWad, 990e18);
+        assertEq(dollar.balanceOf(address(diamond)), 1990e18);
+        assertEq(token.allowance(address(diamond), address(dollarCore)), 0);
+    }
+
     function testMigrationPreservesWadBookAndUnassignedDonations() public {
         _house(100e18);
         token.mint(address(diamond), 7e6);
@@ -53,6 +68,7 @@ contract DollarMigrationTest is DollarProtocolFixture {
     function testRedemptionFailureRollsBackAccountAndPhysicalCustody() public {
         _bindDollar();
         _migrate();
+        dollarCore.setQuotePrice(1.001e18);
         dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Recovering, false);
         vm.prank(alice);
         vm.expectRevert();
@@ -109,6 +125,7 @@ contract DollarMigrationTest is DollarProtocolFixture {
     }
 
     function testFeeQuoteRejectsBindingAndLaterMigrationWithoutLosingCash() public {
+        dollarCore.setQuotePrice(1.001e18);
         dollarCore.configure(1, IStaticsDollarCore.ExitStatus.Available, false);
         controls.scheduleSafetyAction(
             keccak256(abi.encode("dollar-binding", address(dollarCore), address(dollar), uint256(1)))
@@ -130,6 +147,7 @@ contract DollarMigrationTest is DollarProtocolFixture {
 
     function testInexactMigrationRollsBackEverything() public {
         _bindDollar();
+        dollarCore.setQuotePrice(1.001e18);
         dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Available, true);
         controls.scheduleSafetyAction(
             keccak256(abi.encode("dollar-migration", address(dollarCore), address(dollar), uint256(1)))
