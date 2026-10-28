@@ -14,6 +14,11 @@ fs_permissions = [{ access = "read", path = "test/fixtures" }]
 remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
   "forge-std/=lib/forge-std/src/",
+  "statics-oracle/=lib/statics-oracle/src/",
+  "src/interfaces/IAggregatorV3.sol=lib/statics-oracle/src/interfaces/IAggregatorV3.sol",
+  "src/interfaces/IVerifierProxy.sol=lib/statics-oracle/src/interfaces/IVerifierProxy.sol",
+  "src/libraries/DataStreamsV3.sol=lib/statics-oracle/src/libraries/DataStreamsV3.sol",
+  "src/libraries/OracleMath.sol=lib/statics-oracle/src/libraries/OracleMath.sol",
 ]
 
 [profile.default.fuzz]
