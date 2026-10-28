@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { BucketRewardToken } from "../rewards/BucketRewardToken.sol";
+import { LibUnits } from "./LibUnits.sol";
 import { LibAccountsStorage } from "./LibAccountsStorage.sol";
 
 library LibRewards {
@@ -21,6 +22,24 @@ library LibRewards {
         uint256 rewardUnitsPerDollar;
         bool wrappingEnabled;
         bool unwrappingEnabled;
+    }
+
+    event LossRewardIssued(
+        uint256 indexed positionId,
+        uint256 indexed tradeId,
+        uint256 lossBasisWad,
+        uint256 unitsPerDollar,
+        uint256 requestedUnits,
+        uint256 issuedUnits,
+        uint256 shortfallUnits
+    );
+
+    function rewardLoss(uint256 positionId, uint256 tradeId, uint256 lossBasisWad) internal {
+        if (lossBasisWad == 0) return;
+        uint256 rate = state().rewardUnitsPerDollar;
+        uint256 requested = LibUnits.rewardUnits(lossBasisWad, rate);
+        uint256 issued = issue(positionId, requested);
+        emit LossRewardIssued(positionId, tradeId, lossBasisWad, rate, requested, issued, requested - issued);
     }
 
     error InvalidAmount();
