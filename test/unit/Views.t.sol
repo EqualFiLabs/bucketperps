@@ -6,6 +6,8 @@ import { IDiamondCut } from "../../src/interfaces/IDiamondCut.sol";
 import { LibTrades } from "../../src/libraries/LibTrades.sol";
 import { LibMarkets } from "../../src/libraries/LibMarkets.sol";
 
+import { LibOracle } from "../../src/libraries/LibOracle.sol";
+
 contract ViewsTest is DollarProtocolFixture {
     ViewFacet internal views;
 
@@ -46,6 +48,17 @@ contract ViewsTest is DollarProtocolFixture {
         assertEq(trade.streamId, STREAM);
         assertEq(current, replacement);
         assertEq(terms.fees.winStakerBps, 100);
+    }
+
+    function testAcceptedPriceEventContainsMetadataWithoutSignedReportBytes() public {
+        vm.expectEmit(true, true, false, true, address(diamond));
+        emit LibOracle.ExecutionPriceAccepted(MARKET, STREAM, 50_000e18, 100, 99, 101);
+        uint256 id = _openCash(1, alice, true);
+        _price(49_900e18);
+        vm.expectEmit(true, true, false, true, address(diamond));
+        emit LibOracle.ExecutionPriceAccepted(MARKET, STREAM, 49_900e18, 100, 99, 101);
+        vm.prank(alice);
+        settlement.closePosition(1, id, block.timestamp, new bytes[](0));
     }
 
     function testBackingAndLedgerViewsReconcileEconomicOwnership() public {
