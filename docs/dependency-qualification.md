@@ -28,3 +28,10 @@ Configuration fixtures are not production qualification. Launch/finalization dec
 must use the exact candidate, dependency revisions, deployed code identities and
 chain-specific evidence. Missing external implementations remain unresolved rather
 than being treated as a passing mock integration.
+
+The pinned oracle selects a reference at the current timestamp minus its configured
+execution delay. BucketPerps currently opens orders immediately at that reference.
+Known-price latency therefore remains an execution-design qualification, including
+report delivery and inclusion behavior. Production trading requires a compatible
+execution policy; the fixture delay and passing source-integration tests do not
+establish one. No pending-order mechanism is included in this candidate.
