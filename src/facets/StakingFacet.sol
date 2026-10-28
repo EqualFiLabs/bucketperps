@@ -12,6 +12,8 @@ import { LibGuard } from "../libraries/LibGuard.sol";
 import { IStaticsAccountBridge } from "../interfaces/IStaticsAccountBridge.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract StakingFacet {
     error InvalidWeightCallback();
     event CanonicalWeightChanged(
@@ -36,6 +38,7 @@ contract StakingFacet {
 
     function stake(uint256 id, uint256 units) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.STAKING);
         LibAccounts.requireOwner(id);
         LibStaking.checkpoint(id);
         LibAccountsStorage.Account storage a = LibAccountsStorage.state().accounts[id];
@@ -49,6 +52,7 @@ contract StakingFacet {
 
     function unstake(uint256 id, uint256 units) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.STAKING);
         LibAccounts.requireOwner(id);
         LibStaking.checkpoint(id);
         LibAccountsStorage.Account storage a = LibAccountsStorage.state().accounts[id];
@@ -62,6 +66,7 @@ contract StakingFacet {
 
     function claimStakerRevenue(uint256 id) external returns (uint256 amountWad) {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.WITHDRAWALS);
         LibAccounts.requireOwner(id);
         LibStaking.checkpoint(id);
         LibAccountsStorage.Account storage a = LibAccountsStorage.state().accounts[id];

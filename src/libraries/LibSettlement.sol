@@ -18,6 +18,8 @@ import { LibCash } from "./LibCash.sol";
 
 import { LibRewards } from "./LibRewards.sol";
 
+import { LibControls } from "./LibControls.sol";
+
 library LibSettlement {
     using SafeCast for uint256;
 
@@ -48,6 +50,7 @@ library LibSettlement {
         internal
         returns (Result memory r)
     {
+        LibControls.requireClear(LibControls.SETTLEMENT);
         LibTrades.Trade storage t = LibTrades.requireLive(positionId, tradeId);
         LibCash.requireBacking();
         r.exitPrice1e18 =

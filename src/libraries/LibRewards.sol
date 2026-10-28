@@ -8,6 +8,8 @@ import { BucketRewardToken } from "../rewards/BucketRewardToken.sol";
 import { LibUnits } from "./LibUnits.sol";
 import { LibAccountsStorage } from "./LibAccountsStorage.sol";
 
+import { LibControls } from "./LibControls.sol";
+
 library LibRewards {
     using SafeERC20 for IERC20;
     bytes32 internal constant SLOT = keccak256("bucketperps.storage.rewards.v1");
@@ -38,7 +40,10 @@ library LibRewards {
         if (lossBasisWad == 0) return;
         uint256 rate = state().rewardUnitsPerDollar;
         uint256 requested = LibUnits.rewardUnits(lossBasisWad, rate);
-        uint256 issued = issue(positionId, requested);
+        uint256 issued;
+        if (LibControls.state().pausedGroups & LibControls.REWARDS == 0) {
+            issued = issue(positionId, requested);
+        }
         emit LossRewardIssued(positionId, tradeId, lossBasisWad, rate, requested, issued, requested - issued);
     }
 

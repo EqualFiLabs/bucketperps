@@ -10,6 +10,8 @@ import { LibBookStorage } from "../libraries/LibBookStorage.sol";
 import { LibCash } from "../libraries/LibCash.sol";
 import { FundingSource } from "../types/TradingTypes.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract LiquidationFacet {
     event LiquidationExecuted(
         uint256 indexed tradeId,
@@ -51,6 +53,7 @@ contract LiquidationFacet {
 
     function withdrawKeeperCredit(uint256 amountWad, address receiver) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.FEES);
         LibKeeper.State storage s = LibKeeper.state();
         s.credits[msg.sender] -= amountWad;
         s.totalPayableWad -= amountWad;

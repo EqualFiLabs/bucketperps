@@ -5,6 +5,8 @@ import { LibQueue } from "../libraries/LibQueue.sol";
 import { LibBookStorage } from "../libraries/LibBookStorage.sol";
 import { LibGuard } from "../libraries/LibGuard.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract QueueFacet {
     function queueState() external view returns (uint256 headId, uint256 lastId, uint256 debtWad) {
         LibQueue.State storage s = LibQueue.state();
@@ -39,12 +41,14 @@ contract QueueFacet {
 
     function harvest(uint256 maxEntries) external returns (uint256 paidWad) {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.QUEUE);
         paidWad = LibQueue.harvest(maxEntries);
         LibGuard.exit();
     }
 
     function advanceQueue(uint256 maxVisits) external returns (uint256 headId) {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.QUEUE);
         headId = LibQueue.advance(maxVisits);
         LibGuard.exit();
     }

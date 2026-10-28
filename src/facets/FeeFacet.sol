@@ -12,6 +12,8 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { LibUnits } from "../libraries/LibUnits.sol";
 import { IOperatorFeeRouter } from "../interfaces/IOperatorFeeRouter.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract FeeFacet {
     using SafeERC20 for IERC20;
     event OperatorFeesDelivered(address indexed router, uint256 amountWad);
@@ -19,6 +21,7 @@ contract FeeFacet {
     /// @notice Independent delivery; a router failure cannot interrupt trade settlement.
     function flushOperatorFees(uint256 amountWad) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.FEES);
         LibCash.requireBacking();
         if (amountWad == 0) revert LibCash.InvalidAmount();
         LibFees.State storage f = LibFees.state();
@@ -50,6 +53,7 @@ contract FeeFacet {
 
     function withdrawProtocolFees(uint256 amountWad, address receiver) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.FEES);
         LibProtocol.requireGovernor();
         LibFees.state().protocolPayableWad -= amountWad;
         LibBookStorage.state().fundedPayablesWad -= amountWad;
