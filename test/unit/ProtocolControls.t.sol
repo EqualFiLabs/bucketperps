@@ -3,6 +3,8 @@ pragma solidity 0.8.33;
 import { ControlProtocolFixture } from "../helpers/ControlProtocolFixture.sol";
 import { LibControls } from "../../src/libraries/LibControls.sol";
 
+import { ExecutionOracleMock } from "../mocks/ExecutionOracleMock.sol";
+
 contract ProtocolControlsTest is ControlProtocolFixture {
     function testOpensPausePreservesClosesButSettlementPauseBlocksBoth() public {
         uint256 id = _openCash(1, alice, true);
@@ -40,6 +42,26 @@ contract ProtocolControlsTest is ControlProtocolFixture {
         settlement.closePosition(1, id, block.timestamp, new bytes[](0));
         assertEq(accounts.accountState(1).unstakedRewardUnits, 0);
         assertTrue(trading.tradeState(id).settled);
+    }
+
+    function testTypedDependencyDelayBindsPayloadAndExecutesOnce() public {
+        controls.setSafetyDelays(0, 1 days);
+        ExecutionOracleMock replacement = new ExecutionOracleMock();
+        bytes32 operation = keccak256(abi.encode("oracle", address(replacement)));
+        controls.scheduleSafetyAction(operation);
+        vm.expectRevert();
+        controls.executeOracle(address(replacement));
+        vm.warp(block.timestamp + 1 days);
+        vm.expectRevert();
+        controls.executeOracle(address(oracle));
+        controls.executeOracle(address(replacement));
+        vm.expectRevert();
+        controls.executeOracle(address(replacement));
+        assertEq(controls.safetyAction(operation), 0);
+        controls.setSafetyDelays(0, 0);
+        controls.scheduleSafetyAction(keccak256(abi.encode("oracle", address(oracle))));
+        controls.executeOracle(address(oracle));
+        _openCash(1, alice, true);
     }
 
     function testGuardianCannotUnpauseAndIncidentPauseBlocksExits() public {
