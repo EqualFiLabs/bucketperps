@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.33;
 
-import { ProtocolFixture } from "../helpers/ProtocolFixture.sol";
+import { StakingProtocolFixture } from "../helpers/StakingProtocolFixture.sol";
 import { LedgerVectorsTest } from "../reference/LedgerVectors.t.sol";
 import { IDiamondCut } from "../../src/interfaces/IDiamondCut.sol";
 import { LibBookStorage } from "../../src/libraries/LibBookStorage.sol";
@@ -39,7 +39,12 @@ contract LedgerSeedFacet {
         bytes32 kind = keccak256(bytes(row.kind));
         _queue(row, kind);
         if (row.beforeBook.m != 0 || row.beforeBook.d != 0) _trade(row, marketId, kind);
-        LibFees.state().protocolPayableWad = row.beforeBook.f;
+        if (kind == keccak256("feeCredit")) {
+            a.claimableRevenueWad = row.amount;
+            LibFees.state().stakerPayableWad = row.beforeBook.f;
+        } else {
+            LibFees.state().protocolPayableWad = row.beforeBook.f;
+        }
         bool zeroWeight = row.retainedStaker != 0;
         // Positive denominator is a fee-allocation precondition, not real staking qualification.
         LibStakingStorage.state().totalEffectiveWeight = zeroWeight ? 0 : 1;
@@ -117,8 +122,8 @@ contract LedgerSeedFacet {
     }
 }
 
-contract LedgerReplayTest is ProtocolFixture {
-    function test_NineteenIndependentTransitionsMatchProductionBook() public {
+contract LedgerReplayTest is StakingProtocolFixture {
+    function test_TwentyIndependentTransitionsMatchProductionBook() public {
         LedgerVectorsTest.Vector[] memory rows = abi.decode(
             vm.parseJson(vm.readFile("test/fixtures/ledger-vectors.json"), ".vectors"),
             (LedgerVectorsTest.Vector[])
@@ -134,8 +139,6 @@ contract LedgerReplayTest is ProtocolFixture {
         uint256 checked;
         for (uint256 i; i < rows.length; ++i) {
             bytes32 kind = keccak256(bytes(rows[i].kind));
-            // Funded staking fee-to-cash credit requires the later staking implementation.
-            if (kind == keccak256("feeCredit")) continue;
             uint256 snapshot = vm.snapshotState();
             LedgerSeedFacet(address(diamond)).seed(rows[i], MARKET);
             _execute(rows[i], kind);
@@ -143,11 +146,14 @@ contract LedgerReplayTest is ProtocolFixture {
             assertTrue(vm.revertToState(snapshot));
             ++checked;
         }
-        assertEq(checked, 19);
+        assertEq(checked, 20);
     }
 
     function _execute(LedgerVectorsTest.Vector memory r, bytes32 kind) private {
-        if (kind == keccak256("claimOpen")) {
+        if (kind == keccak256("feeCredit")) {
+            vm.prank(alice);
+            assertEq(staking.claimStakerRevenue(1), r.amount, r.id);
+        } else if (kind == keccak256("claimOpen")) {
             OpenParams memory p = _params(true, FundingSource.Claim);
             p.marginWad = r.amount;
             ClaimPortion[] memory portions = new ClaimPortion[](1);
