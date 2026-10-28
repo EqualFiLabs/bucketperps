@@ -16,6 +16,7 @@ library LibFees {
         uint256 protocolPayableWad;
         uint256 operatorPayableWad;
         uint256 stakerPayableWad;
+        address operatorRouter;
     }
 
     struct Quote {
