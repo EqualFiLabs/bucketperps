@@ -7,12 +7,15 @@ import { LibBookStorage } from "../libraries/LibBookStorage.sol";
 import { LibCash } from "../libraries/LibCash.sol";
 import { LibGuard } from "../libraries/LibGuard.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract CashFacet {
     event Deposited(uint256 indexed positionId, address indexed owner, uint256 tokenUnits, uint256 amountWad);
     event Withdrawn(uint256 indexed positionId, address indexed receiver, uint256 amountWad);
 
     function deposit(uint256 positionId, uint256 tokenUnits) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.DEPOSITS);
         LibAccounts.requireOwner(positionId);
         uint256 wad = LibCash.receiveExact(msg.sender, tokenUnits);
         LibAccountsStorage.state().accounts[positionId].cashWad += wad;
@@ -24,6 +27,7 @@ contract CashFacet {
 
     function withdraw(uint256 positionId, uint256 amountWad, address receiver) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.WITHDRAWALS);
         LibAccounts.requireOwner(positionId);
         LibAccountsStorage.state().accounts[positionId].cashWad -= amountWad;
         LibBookStorage.state().accountCashWad -= amountWad;

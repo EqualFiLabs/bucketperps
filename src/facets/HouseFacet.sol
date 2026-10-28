@@ -10,6 +10,8 @@ import { LibUnits } from "../libraries/LibUnits.sol";
 import { LibProtocol } from "../libraries/LibProtocol.sol";
 import { LibGuard } from "../libraries/LibGuard.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract HouseFacet {
     error InvalidDonation();
     error SurplusUnavailable();
@@ -59,6 +61,7 @@ contract HouseFacet {
     /// @notice Distribute realized excess from available house cash while the FIFO queue is empty.
     function distributeSurplus(uint256 amountWad) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.SURPLUS);
         LibProtocol.requireGovernor();
         LibCash.requireBacking();
         LibBookStorage.State storage b = LibBookStorage.state();

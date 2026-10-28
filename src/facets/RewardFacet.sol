@@ -11,6 +11,8 @@ import { BackingVault } from "../rewards/BackingVault.sol";
 
 import { LibProtocol } from "../libraries/LibProtocol.sol";
 
+import { LibControls } from "../libraries/LibControls.sol";
+
 contract RewardFacet {
     event LossRewardRateChanged(uint256 previousUnitsPerDollar, uint256 nextUnitsPerDollar);
 
@@ -29,6 +31,7 @@ contract RewardFacet {
 
     function wrap(uint256 positionId, uint256 units) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.CONVERSION);
         LibAccounts.requireOwner(positionId);
         LibRewards.State storage s = LibRewards.state();
         if (!s.wrappingEnabled) revert ConversionDisabled();
@@ -45,6 +48,7 @@ contract RewardFacet {
 
     function unwrap(uint256 positionId, uint256 units, address receiver) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.CONVERSION);
         LibAccounts.requireOwner(positionId);
         LibRewards.State storage s = LibRewards.state();
         if (!s.unwrappingEnabled) revert ConversionDisabled();
@@ -70,6 +74,7 @@ contract RewardFacet {
 
     function fundRewardInventory(uint256 units) external {
         LibGuard.enter();
+        LibControls.requireClear(LibControls.DEPOSITS);
         if (units == 0) revert LibRewards.InvalidAmount();
         LibRewards.transferExact(msg.sender, address(this), units);
         LibRewards.state().inventoryUnits += units;
