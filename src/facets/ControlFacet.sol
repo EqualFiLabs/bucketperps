@@ -8,7 +8,31 @@ import { LibGuard } from "../libraries/LibGuard.sol";
 import { LibOracle } from "../libraries/LibOracle.sol";
 import { LibFees } from "../libraries/LibFees.sol";
 
+import { LibRewards } from "../libraries/LibRewards.sol";
+
 contract ControlFacet {
+    event ConversionFlagsChanged(bool wrappingEnabled, bool unwrappingEnabled);
+    event WrapCapacityChanged(uint256 remainingUnits);
+
+    function executeConversionFlags(bool wrapping, bool unwrapping) external {
+        LibGuard.enter();
+        LibProtocol.requireGovernor();
+        _consume(keccak256(abi.encode("conversion-flags", wrapping, unwrapping)));
+        LibRewards.state().wrappingEnabled = wrapping;
+        LibRewards.state().unwrappingEnabled = unwrapping;
+        emit ConversionFlagsChanged(wrapping, unwrapping);
+        LibGuard.exit();
+    }
+
+    function executeWrapCapacity(uint256 remainingUnits) external {
+        LibGuard.enter();
+        LibProtocol.requireGovernor();
+        _consume(keccak256(abi.encode("wrap-capacity", remainingUnits)));
+        LibRewards.state().wrapCapacityUnits = remainingUnits;
+        emit WrapCapacityChanged(remainingUnits);
+        LibGuard.exit();
+    }
+
     event ProtocolFinalized();
 
     function finalizeProtocol() external {

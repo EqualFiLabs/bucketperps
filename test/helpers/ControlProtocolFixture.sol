@@ -11,7 +11,7 @@ abstract contract ControlProtocolFixture is StakingProtocolFixture {
     function setUp() public virtual override {
         super.setUp();
         IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](1);
-        bytes4[] memory s = new bytes4[](11);
+        bytes4[] memory s = new bytes4[](13);
         s[0] = ControlFacet.pause.selector;
         s[1] = ControlFacet.unpause.selector;
         s[2] = ControlFacet.pausedGroups.selector;
@@ -23,6 +23,8 @@ abstract contract ControlProtocolFixture is StakingProtocolFixture {
         s[8] = ControlFacet.executeOracle.selector;
         s[9] = ControlFacet.executeOperatorRouter.selector;
         s[10] = ControlFacet.finalizeProtocol.selector;
+        s[11] = ControlFacet.executeConversionFlags.selector;
+        s[12] = ControlFacet.executeWrapCapacity.selector;
         cuts[0] = _cut(address(new ControlFacet()), s);
         diamond.scheduleDiamondCut(cuts, address(0), "");
         vm.warp(block.timestamp + 1 days);

@@ -95,6 +95,38 @@ contract ProtocolControlsTest is ControlProtocolFixture {
         settlement.closePosition(1, id, block.timestamp, new bytes[](0));
     }
 
+    function testRetainedConversionsRespectDelayAndCapacityWithoutResetOnToggle() public {
+        _earnReceipts(1, alice);
+        controls.finalizeProtocol();
+        controls.setSafetyDelays(0, 1 days);
+        bytes32 flags = keccak256(abi.encode("conversion-flags", true, true));
+        controls.scheduleSafetyAction(flags);
+        vm.expectRevert();
+        controls.executeConversionFlags(true, true);
+        vm.warp(block.timestamp + 1 days);
+        controls.executeConversionFlags(true, true);
+        vm.prank(alice);
+        rewards.unwrap(1, 5e18, alice);
+        assertEq(rewards.rewardState().wrapCapacityUnits, 5e18);
+        controls.setSafetyDelays(0, 0);
+        controls.scheduleSafetyAction(keccak256(abi.encode("conversion-flags", false, true)));
+        controls.executeConversionFlags(false, true);
+        vm.prank(alice);
+        rewards.unwrap(1, 5e18, alice);
+        assertEq(rewards.rewardState().wrapCapacityUnits, 5e18);
+        controls.scheduleSafetyAction(flags);
+        controls.executeConversionFlags(true, true);
+        assertEq(rewards.rewardState().wrapCapacityUnits, 5e18);
+        vm.prank(alice);
+        staticsToken.approve(address(diamond), 5e18);
+        vm.prank(alice);
+        rewards.wrap(1, 5e18);
+        assertEq(rewards.rewardState().wrapCapacityUnits, 0);
+        controls.scheduleSafetyAction(keccak256(abi.encode("wrap-capacity", uint256(8e18))));
+        controls.executeWrapCapacity(8e18);
+        assertEq(rewards.rewardState().wrapCapacityUnits, 8e18);
+    }
+
     function testGuardianCannotUnpauseAndIncidentPauseBlocksExits() public {
         vm.prank(bob);
         controls.pause(type(uint256).max);
