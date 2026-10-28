@@ -1,0 +1,96 @@
+{
+  "AccountFacet": [
+    "accountState",
+    "hasUnresolvedAccountState",
+    "syncAccountActivity"
+  ],
+  "CashFacet": [
+    "deposit",
+    "withdraw"
+  ],
+  "ControlFacet": [
+    "executeConversionFlags",
+    "executeWrapCapacity",
+    "finalizeProtocol",
+    "safetyAction",
+    "safetyDelay",
+    "setSafetyDelays",
+    "scheduleSafetyAction",
+    "cancelSafetyAction",
+    "executeOracle",
+    "executeOperatorRouter",
+    "pausedGroups",
+    "pause",
+    "unpause"
+  ],
+  "FeeFacet": [
+    "flushOperatorFees",
+    "feePayables",
+    "withdrawProtocolFees"
+  ],
+  "HouseFacet": [
+    "unassignedSettlementUnits",
+    "classifySettlementDonation",
+    "surplusConfiguration",
+    "configureSurplus",
+    "distributeSurplus"
+  ],
+  "LiquidationFacet": [
+    "liquidate",
+    "keeperPayable",
+    "totalKeeperPayable",
+    "withdrawKeeperCredit"
+  ],
+  "MarketFacet": [
+    "configureMarket",
+    "publishTerms",
+    "setGlobalOiCap",
+    "marketState",
+    "economicTerms",
+    "globalOpenInterest"
+  ],
+  "QueueFacet": [
+    "queueState",
+    "claimState",
+    "accountClaimIds",
+    "queueBounds",
+    "harvest",
+    "advanceQueue"
+  ],
+  "RewardFacet": [
+    "setLossRewardRate",
+    "wrap",
+    "unwrap",
+    "rewardState",
+    "fundRewardInventory"
+  ],
+  "SettlementAssetFacet": [
+    "withdrawUsdG",
+    "dollarMigrationState",
+    "configureDollarMigration",
+    "migrateUsdGToUsdStx"
+  ],
+  "SettlementFacet": [
+    "closePosition"
+  ],
+  "StakingFacet": [
+    "onAccountMultiplierChanged",
+    "stake",
+    "unstake",
+    "claimStakerRevenue",
+    "pendingStakerRevenue",
+    "stakingTotals"
+  ],
+  "TradingFacet": [
+    "openPosition",
+    "tradeState"
+  ],
+  "ViewFacet": [
+    "ledgerState",
+    "accountOverview",
+    "externalAccountIdentity",
+    "accountTradeIds",
+    "tradeContext",
+    "rewardBacking"
+  ]
+}

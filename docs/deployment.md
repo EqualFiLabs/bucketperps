@@ -1,0 +1,13 @@
+# Deployment preparation
+
+The deployment script installs fourteen production facets and the Diamond's immutable selectors. A fixed initializer binds the Position NFT, Statics bridge, settlement token, STATICS, execution oracle and Operator router, and publishes the supplied first market and economic version atomically. Governor and Guardian can differ from the deploying address. No fixture selectors are installed.
+
+Supply a complete configuration tuple to the script's `run` function through Foundry. The `deploy` function exposes the same construction without broadcasting for tests and simulation. The selector manifest names every installed facet method; compiler selectors and the deployment test verify routing. Use the pinned compiler and dependency revisions. The development configuration documents example values and units; it is not a production launch configuration.
+
+Before a real deployment, confirm the target chain and dependency addresses against canonical deployment records, read deployed code and identity views, and verify Governor/Guardian custody. Qualify the Statics account bridge and all canonical multiplier callbacks under issue #143, oracle consumer authorization and stream mapping, and Operator router asset registration and funding. Confirm settlement and STATICS token metadata and exact-transfer behavior. The source-qualified oracle and router tests do not establish target-chain readiness.
+
+The initial reward inventory is empty. Fund it by approving the Diamond for existing STATICS and calling `fundRewardInventory`. Funding is separate from issuance. Wrapping and unwrapping begin off with zero capacity. Surplus has no enable switch; its ordinary FIFO, realized-profit and cash checks apply. The configured reward rate and market limits are ordinary numeric parameters.
+
+The initializer leaves Dollar migration unbound. Keep it unbound until issue #142's actual approved-consumer, fee-exempt minting and redemption behavior is implemented and qualified. USDG launch does not depend on Dollar deployment. No deployment script finalizes the protocol or submits downstream configuration transactions. Reproduce the complete book, custody addresses, authorities, selectors and conversion state after a separately authorized deployment before accepting funds.
+
+Changing parameters later uses the existing Governor functions. Dependency replacement, public conversion enablement and explicit remaining-capacity changes consume their exact scheduled hashes. Finalization permanently removes upgrade capability while preserving the specified operational controls. Review the selector set and qualified dependency revisions before that irreversible action.

@@ -28,4 +28,5 @@ jobs:
           echo "$RUNNER_TEMP/foundry" >> "$GITHUB_PATH"
       - run: forge fmt --check
       - run: forge build --sizes
+      - run: python3 script/check-selectors.py
       - run: forge test -vv
