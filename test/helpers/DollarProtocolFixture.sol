@@ -16,10 +16,11 @@ abstract contract DollarProtocolFixture is ControlProtocolFixture {
         dollar = new CashTokenMock(18);
         dollarCore = new DollarCoreMock(token, dollar);
         IDiamondCut.FacetCut[] memory cuts = new IDiamondCut.FacetCut[](1);
-        bytes4[] memory s = new bytes4[](3);
+        bytes4[] memory s = new bytes4[](4);
         s[0] = SettlementAssetFacet.dollarMigrationState.selector;
         s[1] = SettlementAssetFacet.configureDollarMigration.selector;
         s[2] = SettlementAssetFacet.migrateUsdGToUsdStx.selector;
+        s[3] = SettlementAssetFacet.withdrawUsdG.selector;
         cuts[0] = _cut(address(new SettlementAssetFacet()), s);
         diamond.scheduleDiamondCut(cuts, address(0), "");
         vm.warp(block.timestamp + 1 days);

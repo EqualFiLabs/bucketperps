@@ -13,7 +13,58 @@ import { LibProtocol } from "../libraries/LibProtocol.sol";
 import { LibControls } from "../libraries/LibControls.sol";
 import { LibGuard } from "../libraries/LibGuard.sol";
 
+import { LibAccounts } from "../libraries/LibAccounts.sol";
+import { LibAccountsStorage } from "../libraries/LibAccountsStorage.sol";
+
 contract SettlementAssetFacet {
+    event UsdGWithdrawn(
+        uint256 indexed positionId, address indexed receiver, uint256 amountWad, uint256 usdgUnits
+    );
+
+    function withdrawUsdG(uint256 positionId, uint256 amountWad, address receiver) external {
+        LibGuard.enter();
+        LibControls.requireClear(LibControls.WITHDRAWALS);
+        LibAccounts.requireOwner(positionId);
+        if (amountWad == 0) revert LibCash.InvalidAmount();
+        if (receiver == address(0) || receiver == address(this)) revert LibCash.InvalidReceiver();
+        LibDollar.State storage s = LibDollar.state();
+        LibBookStorage.State storage b = LibBookStorage.state();
+        LibAccountsStorage.state().accounts[positionId].cashWad -= amountWad;
+        b.accountCashWad -= amountWad;
+        uint256 units;
+        if (!s.migrated) {
+            units = LibUnits.toTokenUnits(amountWad, b.cashQuantum);
+            LibCash.sendExact(receiver, amountWad);
+        } else {
+            LibControls.requireClear(LibControls.CONVERSION);
+            LibCash.requireBacking();
+            units = LibUnits.toTokenUnits(amountWad, s.usdgQuantum);
+            LibDollar.requireRedemptionQuote(amountWad, units);
+            IERC20 usdg = IERC20(s.usdg);
+            uint256 beforeHere = usdg.balanceOf(address(this));
+            uint256 beforeDollar = IERC20(s.dollar).balanceOf(address(this));
+            b.custodyWad -= amountWad;
+            (IStaticsDollarCore.ExitStatus status, uint256 received) =
+                IStaticsDollarCore(s.core).redeemPegged(s.profileId, amountWad, units, address(this));
+            if (
+                status != IStaticsDollarCore.ExitStatus.Available || received != units
+                    || IERC20(s.dollar).balanceOf(address(this)) + amountWad != beforeDollar
+                    || usdg.balanceOf(address(this)) != beforeHere + units
+            ) revert LibDollar.InvalidConversion();
+            uint256 beforeReceiver = usdg.balanceOf(receiver);
+            usdg.safeTransfer(receiver, units);
+            if (
+                usdg.balanceOf(address(this)) != beforeHere
+                    || usdg.balanceOf(receiver) != beforeReceiver + units
+            ) {
+                revert LibCash.InexactTransfer();
+            }
+        }
+        LibAccounts.syncActivity(positionId);
+        emit UsdGWithdrawn(positionId, receiver, amountWad, units);
+        LibGuard.exit();
+    }
+
     using SafeERC20 for IERC20;
     event DollarMigrationConfigured(address indexed core, address indexed dollar, uint256 profileId);
     event SettlementAssetMigrated(

@@ -27,6 +27,47 @@ contract DollarMigrationTest is DollarProtocolFixture {
         assetFacet.migrateUsdGToUsdStx();
     }
 
+    function testOwnerUsdGRedemptionAndNativeFinePrecisionExit() public {
+        _bindDollar();
+        _migrate();
+        vm.prank(bob);
+        vm.expectRevert();
+        assetFacet.withdrawUsdG(1, 10e18, bob);
+        vm.prank(alice);
+        assetFacet.withdrawUsdG(1, 10e18, alice);
+        assertEq(token.balanceOf(alice), 10e6);
+        assertEq(accounts.accountState(1).cashWad, 990e18);
+        // Fine USDstx precision can be deposited, and remains credited on an inexact USDG request.
+        dollar.mint(alice, 1);
+        vm.startPrank(alice);
+        dollar.approve(address(diamond), 1);
+        cash.deposit(1, 1);
+        vm.expectRevert();
+        assetFacet.withdrawUsdG(1, 1, alice);
+        assertEq(accounts.accountState(1).cashWad, 990e18 + 1);
+        cash.withdraw(1, 1, alice);
+        vm.stopPrank();
+        assertEq(dollar.balanceOf(alice), 1);
+    }
+
+    function testRedemptionFailureRollsBackAccountAndPhysicalCustody() public {
+        _bindDollar();
+        _migrate();
+        dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Recovering, false);
+        vm.prank(alice);
+        vm.expectRevert();
+        assetFacet.withdrawUsdG(1, 10e18, alice);
+        assertEq(accounts.accountState(1).cashWad, 1000e18);
+        assertEq(dollar.balanceOf(address(diamond)), 2000e18);
+        dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Available, true);
+        vm.prank(alice);
+        vm.expectRevert();
+        assetFacet.withdrawUsdG(1, 10e18, alice);
+        assertEq(accounts.accountState(1).cashWad, 1000e18);
+        assertEq(dollar.balanceOf(address(diamond)), 2000e18);
+        assertEq(token.balanceOf(alice), 0);
+    }
+
     function testInexactMigrationRollsBackEverything() public {
         _bindDollar();
         dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Available, true);
