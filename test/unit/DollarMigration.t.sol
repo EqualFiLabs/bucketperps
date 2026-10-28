@@ -68,6 +68,66 @@ contract DollarMigrationTest is DollarProtocolFixture {
         assertEq(token.balanceOf(alice), 0);
     }
 
+    function testLiveBookMigrationAfterFinalizationPreservesRewardsDebtFeesAndOldTrades() public {
+        _earnReceipts(1, alice);
+        vm.prank(alice);
+        staking.stake(1, 20e18);
+        _earnReceipts(2, bob);
+        uint256 cashTrade = _openCash(1, alice, true);
+        uint256 claim = bookView.seedEntitlement(2, 200e18);
+        uint256 claimTrade = _openClaim(2, bob, claim);
+        uint256 lossTrade = _openCash(2, bob, true);
+        _price(49_900e18);
+        vm.prank(bob);
+        settlement.closePosition(2, lossTrade, block.timestamp, new bytes[](0));
+        assertGt(bookView.book().sideBucketWad, 0);
+        LibBookStorage.State memory beforeBook = bookView.book();
+        bytes32 accountOne = keccak256(abi.encode(accounts.accountState(1)));
+        bytes32 accountTwo = keccak256(abi.encode(accounts.accountState(2)));
+        uint256 pending = staking.pendingStakerRevenue(1);
+        uint256 backing = staticsToken.balanceOf(rewards.rewardState().backingVault);
+        _bindDollar();
+        controls.finalizeProtocol();
+        _migrate();
+        LibBookStorage.State memory afterBook = bookView.book();
+        afterBook.settlementToken = beforeBook.settlementToken;
+        afterBook.cashQuantum = beforeBook.cashQuantum;
+        assertEq(abi.encode(afterBook), abi.encode(beforeBook));
+        assertEq(keccak256(abi.encode(accounts.accountState(1))), accountOne);
+        assertEq(keccak256(abi.encode(accounts.accountState(2))), accountTwo);
+        assertEq(staking.pendingStakerRevenue(1), pending);
+        assertEq(staticsToken.balanceOf(rewards.rewardState().backingVault), backing);
+        vm.prank(alice);
+        settlement.closePosition(1, cashTrade, block.timestamp, new bytes[](0));
+        vm.prank(bob);
+        settlement.closePosition(2, claimTrade, block.timestamp, new bytes[](0));
+        vm.prank(alice);
+        staking.claimStakerRevenue(1);
+        queue.harvest(128);
+        assertEq(bookView.book().committedDebtWad, 0);
+        assertEq(dollar.balanceOf(address(diamond)), bookView.book().custodyWad);
+    }
+
+    function testFeeQuoteRejectsBindingAndLaterMigrationWithoutLosingCash() public {
+        dollarCore.configure(1, IStaticsDollarCore.ExitStatus.Available, false);
+        controls.scheduleSafetyAction(
+            keccak256(abi.encode("dollar-binding", address(dollarCore), address(dollar), uint256(1)))
+        );
+        vm.expectRevert();
+        assetFacet.configureDollarMigration(address(dollarCore), address(dollar), 1);
+        assertEq(assetFacet.dollarMigrationState().core, address(0));
+        dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Available, false);
+        _bindDollar();
+        dollarCore.configure(1, IStaticsDollarCore.ExitStatus.Available, false);
+        controls.scheduleSafetyAction(
+            keccak256(abi.encode("dollar-migration", address(dollarCore), address(dollar), uint256(1)))
+        );
+        vm.expectRevert();
+        assetFacet.migrateUsdGToUsdStx();
+        assertEq(token.balanceOf(address(diamond)), 2000e6);
+        assertFalse(assetFacet.dollarMigrationState().migrated);
+    }
+
     function testInexactMigrationRollsBackEverything() public {
         _bindDollar();
         dollarCore.configure(0, IStaticsDollarCore.ExitStatus.Available, true);
