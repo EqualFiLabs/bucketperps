@@ -10,6 +10,7 @@ contract DollarCoreMock is IStaticsDollarCore {
     CashTokenMock public immutable dollar;
     uint256 public immutable quantum;
     uint256 public feeUnits;
+    uint256 public quotePriceWad = 1e18;
     ExitStatus public exitStatus;
     bool public inexact;
 
@@ -25,6 +26,10 @@ contract DollarCoreMock is IStaticsDollarCore {
         inexact = bad;
     }
 
+    function setQuotePrice(uint256 priceWad) external {
+        quotePriceWad = priceWad;
+    }
+
     function staticsDollar() external view returns (address) {
         return address(dollar);
     }
@@ -36,9 +41,15 @@ contract DollarCoreMock is IStaticsDollarCore {
         p.mode = ProfileMode.Active;
     }
 
-    function previewPeggedMint(uint256 id, uint256 amount) external view returns (PeggedMintPreview memory) {
+    function previewPeggedMint(uint256 id, uint256 amount)
+        external
+        view
+        returns (PeggedMintPreview memory result)
+    {
         uint256 units = amount / quantum;
-        return PeggedMintPreview(id, address(collateral), amount, units, feeUnits, units + feeUnits, 1e18);
+        result = PeggedMintPreview(
+            id, address(collateral), amount, units, feeUnits, units + feeUnits, quotePriceWad
+        );
     }
 
     function previewPeggedRedemption(uint256 id, uint256 amount)
@@ -47,8 +58,9 @@ contract DollarCoreMock is IStaticsDollarCore {
         returns (PeggedRedemptionPreview memory)
     {
         uint256 units = amount / quantum;
-        PeggedRedemptionPreview memory result =
-            PeggedRedemptionPreview(id, address(collateral), amount, units, feeUnits, units - feeUnits, 1e18);
+        PeggedRedemptionPreview memory result = PeggedRedemptionPreview(
+            id, address(collateral), amount, units, feeUnits, units - feeUnits, quotePriceWad
+        );
         return result;
     }
 

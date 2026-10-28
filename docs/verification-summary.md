@@ -24,3 +24,7 @@ The Halmos transition checks use 48-bit symbolic cash, debt and requested amount
 Certora arithmetic uses 64-bit basis/margin/cap/funding inputs and 16-bit fee rates, with aggregate fee basis points at most 10,000. Finalization rules quantify the caller and initial protocol state. All four rules completed with reachable-state sanity witnesses. The configured loop bound is two with optimistic loop handling; these four rules contain no unbounded protocol traversal.
 
 This is bounded evidence for the named production-library transitions and control predicates. It does not prove every settlement branch, arbitrary queue length, real external callback compatibility, oracle signatures or billing, token trust, target-chain economics or complete bytecode equivalence. Concrete settlement matrices, stateful tests and pinned dependency tests provide separate evidence. Statics account integration and future Dollar consumer behavior remain externally unqualified.
+
+Dollar quote helpers are outside both verification harness import closures. Their
+separate lifecycle and rollback tests provide concrete evidence; the named formal
+properties do not cover Dollar quote validation.

@@ -36,7 +36,6 @@ library LibDollar {
         if (
             q.profileId != s.profileId || q.collateralToken != s.usdg || q.staticsDollarMinted != amountWad
                 || q.principalCollateral != units || q.totalCollateralIn != units || q.feeAmount != 0
-                || q.priceWad != 1e18
         ) revert InvalidConversion();
     }
 
@@ -47,7 +46,6 @@ library LibDollar {
         if (
             q.profileId != s.profileId || q.collateralToken != s.usdg || q.staticsDollarBurned != amountWad
                 || q.grossCollateral != units || q.collateralOut != units || q.feeAmount != 0
-                || q.priceWad != 1e18
         ) revert InvalidConversion();
     }
 }

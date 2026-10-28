@@ -20,8 +20,8 @@ launch settlement asset; a fixed future USDstx conversion is separately gated.
 Execution-oracle, Statics account hooks, fee routing and Dollar compatibility must
 be qualified against their actual implementations before affected production use.
 
-This repository is under development. Test settings are fixtures, and no release
-configuration or production compatibility is implied.
+The code is a review candidate. Test settings are fixtures, and production
+configuration and external compatibility remain separately qualified.
 
 ## Development
 
@@ -33,6 +33,7 @@ v5.7.0 and forge-std v1.17.0 are pinned by submodule commit.
 git submodule update --init --recursive
 forge fmt --check
 forge build --sizes
+python3 script/check-selectors.py
 forge test
 FOUNDRY_PROFILE=ci forge test
 ```
@@ -42,3 +43,9 @@ provide separately qualified dependencies and explicitly selected launch values.
 
 Client workflows are documented in [Direct account integration](docs/client-integration.md)
 and the [event reference](docs/events.md).
+
+Deployment preparation is described in [Deployment](docs/deployment.md). The
+[development economics](docs/economic-configuration.md) describe units and deferred
+production selections. See [dependency qualification](docs/dependency-qualification.md),
+[candidate validation](docs/validation.md) and the [bounded verification summary](docs/verification-summary.md)
+for the evidence and its limits.
